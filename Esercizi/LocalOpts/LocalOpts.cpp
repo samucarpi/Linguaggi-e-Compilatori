@@ -7,7 +7,6 @@ moltiplicazione che hanno tra gli operandi una costante che
 #include "llvm/Transforms/Utils/LocalOpts.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/InstrTypes.h"
-// L'include seguente va in LocalOpts.h
 #include <llvm/IR/Constants.h>
 
 using namespace llvm;
