@@ -13,8 +13,8 @@ moltiplicazione che hanno tra gli operandi una costante che
 using namespace llvm;
 
 bool runOnBasicBlock(BasicBlock &B) {
-
-  for(auto i=B.begin();i!=B.end();++i){
+  auto i=B.begin();
+  while(i!=B.end()){
     if(i->getOpcode()==BinaryOperator::Mul){
       BinaryOperator *mul=dyn_cast<BinaryOperator>(i);
       outs()<<"Analizzo la moltiplicazione: "<<*mul<<"\n";
@@ -43,6 +43,7 @@ bool runOnBasicBlock(BasicBlock &B) {
         outs()<<"Moltiplicazione con costante numerica non potenza di 2\n";
       }
     }
+  i++;
   }
   return true;
 }
