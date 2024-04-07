@@ -4,9 +4,9 @@
 #include "llvm/IR/Constants.h"
 
 namespace llvm {
-class LocalOpts : public PassInfoMixin<LocalOpts> {
-  public:
-    PreservedAnalyses run(Module &M, ModuleAnalysisManager &AM);
+  class LocalOpts : public PassInfoMixin<LocalOpts> {
+    public:
+      PreservedAnalyses run(Module &M, ModuleAnalysisManager &AM);
   };
 }
 #endif
