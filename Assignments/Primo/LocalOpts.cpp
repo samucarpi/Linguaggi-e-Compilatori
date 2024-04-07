@@ -137,7 +137,7 @@ bool StrengthReduction(llvm::BasicBlock::iterator &i){
 
 /*
 ------------------- 3. Multi-Instruction Optimization -------------------
-                        a=b+1, c=a-1 => a=b+1, c=b
+                        a=b+(x), c=a-(x) => a=b+(x), c=b
 -------------------------------------------------------------------------
 */
 bool multiInstOpt(llvm::BasicBlock::iterator &i, Value *&opFound, Value *&found, ConstantInt *&val){
