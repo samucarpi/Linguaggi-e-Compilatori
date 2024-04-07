@@ -180,7 +180,7 @@ bool runOnBasicBlock(BasicBlock &B) {
   Value *opFound=nullptr;                                     // Variabile che conterrà l'operatore dell'istruzione da sostituire in MultiInstOpt
   ConstantInt *val=nullptr;                                   // Variabile che conterrà la costante numerica dell'istruzione in MultiInstOpt
 
-  while(i!=B.end()){                                          // Per ogni istruzione dei BasicBlocks, ne richiamo le funzioni di ottimizzazione
+  while(i!=B.end()){                                          // Per ogni istruzione del BasicBlock, ne richiamo le funzioni di ottimizzazione
     if(algebraicIdentity(i)){
       continue;
     }
