@@ -1,4 +1,4 @@
-#include "llvm/Transforms/Utils/TestLoop.h"
+#include "llvm/Transforms/Utils/PassLICM.h"
 #include "llvm/IR/PassManager.h"
 #include <llvm/IR/Constants.h>
 #include "llvm/IR/Instructions.h"
@@ -9,6 +9,8 @@
 
 using namespace llvm;
 
+
+//controlla se l'operando è un argomento della funzione
 bool isArgument(Use *op){
     if(dyn_cast<Argument>(op)){
         return true;
@@ -16,6 +18,7 @@ bool isArgument(Use *op){
     return false;
 }
 
+//controlla se l'operando è una costante
 bool isConstant(Use *op){
     if(dyn_cast<Constant>(op)){
         return true;
@@ -23,6 +26,7 @@ bool isConstant(Use *op){
     return false;
 }
 
+//ricerca di un instruzione in un vettore di istruzioni
 bool search(std::vector<Instruction*> founds, Instruction *Instr){
     bool found=false;
     for(unsigned int i=0; i<founds.size(); i++){
@@ -34,6 +38,7 @@ bool search(std::vector<Instruction*> founds, Instruction *Instr){
     return found;
 }
 
+//controllo se l'istruzione è loop invariant
 bool isLoopInvariant(Loop &L, Instruction &Instr, std::vector<Instruction*> founds){
     bool check;
     auto op=Instr.op_begin();
@@ -41,22 +46,24 @@ bool isLoopInvariant(Loop &L, Instruction &Instr, std::vector<Instruction*> foun
         check=false;
         outs()<<"Operatore "<<**op;
 
-        if(isArgument(op)){
+        if(isArgument(op)){             // se l'operando è un argomento è loop invariant, allora l'istruzione è loop invariant
             outs()<<" -> ARGOMENTO\n";
             check=true;
-        }else if(isConstant(op)){
+        }else if(isConstant(op)){       // se l'operando è costante è loop invariant, allora l'istruzione è loop invariant
             outs()<<" -> COSTANTE\n";
             check=true;
-        }else if(dyn_cast<BinaryOperator>(op)){
+        }else if(dyn_cast<BinaryOperator>(op)){             // se l'operando è una variabile che è contenuta nel loop e non è presente nelle istruzioni
+                                                            // candidate alla code motion (quindi non è loop invariant), allora l'istruzione originaria
+                                                            // non è loop invariant. Se invece l'operando non soddisfa i criteri detti prima, è loop invariant
             Instruction* i = dyn_cast<Instruction>(op);
             if(L.contains(i) && !search(founds, i)){
-                return false;
+                return false;                                      
             }else{
                 outs()<<" -> DIPENDE DA UN LOOP INVARIANT\n";
                 check=true;
-            }
+            }                                                       
         }
-        if(!check)
+        if(!check)          //se è già stato trovato un operando non loop invariant, allora l'istruzione intera non lo sarà. Interrompo la ricerca
             return false;
         else
             op++;
@@ -64,6 +71,7 @@ bool isLoopInvariant(Loop &L, Instruction &Instr, std::vector<Instruction*> foun
     return check;
 }
 
+//Controllo se il basic block dell'istruzione, nella fase code motion, domina tutte le uscite
 bool dominaUscite(DominatorTree &DomTree, Instruction *Instr, SmallVector<BasicBlock*> BBuscita){
     bool dominato=true;
     BasicBlock* BBInstr=Instr->getParent();
@@ -76,6 +84,7 @@ bool dominaUscite(DominatorTree &DomTree, Instruction *Instr, SmallVector<BasicB
     return dominato;
 }
 
+//Controllo se l'istruzione, dopo l'esecuzione del loop, è utilizzata
 bool mortoDopoLoop(Instruction *Instr, SmallVector<BasicBlock*> BBsuccessori){
     bool dead=true;
     for(auto u=Instr->user_begin(); u!=Instr->user_end(); u++){
@@ -89,7 +98,7 @@ bool mortoDopoLoop(Instruction *Instr, SmallVector<BasicBlock*> BBsuccessori){
     }
     return dead;
 }
-
+//Controllo se la definizione di una variabile domina i suoi usi
 bool dominaUsi(DominatorTree &DomTree, Instruction *Instr){
     bool dominato=true;
     for(auto u=Instr->use_begin(); u!=Instr->use_end(); u++){
@@ -102,10 +111,11 @@ bool dominaUsi(DominatorTree &DomTree, Instruction *Instr){
 }
 
 
-PreservedAnalyses TestLoop::run(Loop &L, LoopAnalysisManager &LAM, LoopStandardAnalysisResults &LAR, LPMUpdater &LU){
+PreservedAnalyses PassLICM::run(Loop &L, LoopAnalysisManager &LAM, LoopStandardAnalysisResults &LAR, LPMUpdater &LU){
     auto BBs=L.getBlocks();
     std::vector<Instruction*> founds;
 
+    //fase di controllo se un'istruzione è loop invariant o no. Nel caso lo fosse, la inserisco in un vettore
     outs()<<"\nCHECK ISTRUZIONI:\n";
     for(BasicBlock* BB : BBs){
         for(auto Inst=BB->begin(); Inst!=BB->end(); Inst++){
@@ -137,7 +147,7 @@ PreservedAnalyses TestLoop::run(Loop &L, LoopAnalysisManager &LAM, LoopStandardA
     outs()<<"\nPULIZIA:\n";
     unsigned int i=0;
     while(i<founds.size()){
-        if(!dominaUscite(DomTree, founds[i], BBuscita)){
+        if(!dominaUscite(DomTree, founds[i], BBuscita)){  //se l'istruzione non domina le uscite ma è morta dopo il loop, non la rimuovo dai candidati. In caso contrario si
             if(mortoDopoLoop(founds[i], BBsuccessori)){
                 founds[i]->printAsOperand(outs(), false);
                 outs()<<" morta dopo il loop, non rimossa\n";
@@ -149,7 +159,7 @@ PreservedAnalyses TestLoop::run(Loop &L, LoopAnalysisManager &LAM, LoopStandardA
                 outs()<<"--> RIMOSSA DAI CANDIDATI\n";
                 continue;
             }
-        }else if(!dominaUsi(DomTree,founds[i])){
+        }else if(!dominaUsi(DomTree,founds[i])){        // se l'istruzione non domina tutti i suoi usi, la rimuovo dai candidati
             founds[i]->printAsOperand(outs(), false);
             outs()<<" non fa parte di un BasicBlock che domina tutti gli utilizzi nel loop\n";
             founds.erase(founds.begin()+i);
@@ -178,5 +188,5 @@ PreservedAnalyses TestLoop::run(Loop &L, LoopAnalysisManager &LAM, LoopStandardA
         outs()<<"Preheader non esistente\n";
     }
 
-    return PreservedAnalyses::none();
+    return PreservedAnalyses::all();
 }
