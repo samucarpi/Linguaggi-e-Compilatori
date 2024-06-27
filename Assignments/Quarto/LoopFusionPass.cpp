@@ -122,7 +122,8 @@ SmallVector<Instruction*> getInstructionsFromBlock(SmallVector<BasicBlock*> BBs)
 /*
     Controllo se ci siano dipendenze negative tra il loop1 e loop2
     Ci sono dipendenze negative se un'istruzione nel loop2 accede ad un dato che è stato
-    precedentemente acceduto dal loop1 in un'iterazione successiva
+    precedentemente acceduto dal loop1 in un'iterazione successiva.
+    NON GIUSTO
 */
 bool checkInverseDependency(Loop *loop1, Loop *loop2, DependenceInfo &DI){
     SmallVector<BasicBlock*> bodyBlocksLoop1 = getLoopBodyBlocks(loop1);
